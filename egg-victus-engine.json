@@ -1,0 +1,83 @@
+{
+    "_comment":  "DO NOT EDIT: FILE GENERATED FOR IMPORT BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta":  {
+                 "version":  "PTDL_v2",
+                 "update_url":  "https://raw.githubusercontent.com/Gravatar123A/victus-engine-builds/main/egg-victus-engine.json"
+             },
+    "exported_at":  "2026-07-25T00:00:00+00:00",
+    "name":  "Victus Engine",
+    "author":  "admin@victuscloud.com",
+    "description":  "Victus Engine 26.2 with optional ViaVersion and ViaBackwards client protocol compatibility. Requires Java 25. The engine stays on 26.2; protocol plugins allow supported older Java clients to connect.",
+    "features":  [
+                     "eula",
+                     "java_version",
+                     "pid_limit"
+                 ],
+    "docker_images":  {
+                          "Java 25":  "ghcr.io/ptero-eggs/yolks:java_25"
+                      },
+    "file_denylist":  [
+
+                      ],
+    "startup":  "java -Xms512M -Xmx{{SERVER_MEMORY}}M -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+DisableExplicitGC -XX:+UseStringDeduplication -Dterminal.jline=false -Dterminal.ansi=true -jar {{SERVER_JARFILE}} --nogui",
+    "config":  {
+                   "files":  "{\n  \"server.properties\": {\n    \"parser\": \"properties\",\n    \"find\": {\n      \"server-ip\": \"0.0.0.0\",\n      \"server-port\": \"{{server.build.default.port}}\",\n      \"query.port\": \"{{server.build.default.port}}\"\n    }\n  }\n}",
+                   "startup":  "{\n  \"done\": \"For help, type \\\"help\\\"\",\n  \"userInteraction\": [\"You need to agree to the EULA\"]\n}",
+                   "logs":  "{}",
+                   "stop":  "stop"
+               },
+    "scripts":  {
+                    "installation":  {
+                                         "script":  "#!/bin/ash\nset -eu\ncd /mnt/server\nJAR_NAME=\"${SERVER_JARFILE:-victus.jar}\"\nDOWNLOAD_URL=\"${VICTUS_DOWNLOAD_URL:-https://raw.githubusercontent.com/Gravatar123A/victus-engine-builds/2f5be8e3ea4202b9f5eaeb039fd63cee87f50b24/victus-server.jar}\"\nTEMP_JAR=\"${JAR_NAME}.download\"\necho \"Downloading Victus Engine from ${DOWNLOAD_URL}\"\nrm -f \"${TEMP_JAR}\"\ncurl --fail --location --retry 3 --retry-delay 2 --output \"${TEMP_JAR}\" \"${DOWNLOAD_URL}\"\ntest -s \"${TEMP_JAR}\"\nEXPECTED_SHA256=\"${VICTUS_SHA256:-2ceeb3ed4221e133d358342d5f3a09c63f9bcb2904e5ec05d530a40956070a2b}\"\nprintf \u0027%s  %s\\n\u0027 \"${EXPECTED_SHA256}\" \"${TEMP_JAR}\" | sha256sum -c -\nunzip -t \"${TEMP_JAR}\" \u003e/dev/null\nif [ -f \"${JAR_NAME}\" ]; then cp -f \"${JAR_NAME}\" \"${JAR_NAME}.previous\"; fi\nmv -f \"${TEMP_JAR}\" \"${JAR_NAME}\"\nif [ \"${INSTALL_PROTOCOL_SUPPORT:-1}\" = \"1\" ]; then\n  mkdir -p plugins\n  for PROJECT in ViaVersion ViaBackwards; do\n    echo \"Resolving latest ${PROJECT} Paper build\"\n    PLUGIN_URL=$(curl --fail --silent --show-error \"https://hangar.papermc.io/api/v1/projects/${PROJECT}/versions?limit=1\u0026offset=0\" | jq -r \u0027.result[0].downloads.PAPER.downloadUrl // empty\u0027)\n    test -n \"${PLUGIN_URL}\"\n    curl --fail --location --retry 3 --retry-delay 2 --output \"plugins/${PROJECT}.jar.download\" \"${PLUGIN_URL}\"\n    unzip -t \"plugins/${PROJECT}.jar.download\" \u003e/dev/null\n    mv -f \"plugins/${PROJECT}.jar.download\" \"plugins/${PROJECT}.jar\"\n  done\nfi\nprintf \u0027eula=%s\\n\u0027 \"${EULA:-false}\" \u003e eula.txt\necho \"Victus Engine installation complete.\"",
+                                         "container":  "ghcr.io/pterodactyl/installers:alpine",
+                                         "entrypoint":  "ash"
+                                     }
+                },
+    "variables":  [
+                      {
+                          "name":  "Server Jar File",
+                          "description":  "The JAR filename used to start Victus Engine.",
+                          "env_variable":  "SERVER_JARFILE",
+                          "default_value":  "victus.jar",
+                          "user_viewable":  true,
+                          "user_editable":  false,
+                          "rules":  "required|regex:/^([\\w\\d._-]+)(\\.jar)$/"
+                      },
+                      {
+                          "name":  "Victus Download URL",
+                          "description":  "Direct URL for a genuinely built Victus Engine JAR. The default is pinned to the verified 26.2 build.",
+                          "env_variable":  "VICTUS_DOWNLOAD_URL",
+                          "default_value":  "https://raw.githubusercontent.com/Gravatar123A/victus-engine-builds/2f5be8e3ea4202b9f5eaeb039fd63cee87f50b24/victus-server.jar",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|url|max:500"
+                      },
+                      {
+                          "name":  "Victus JAR SHA-256",
+                          "description":  "Expected SHA-256 for the selected Victus JAR. Installation aborts on mismatch.",
+                          "env_variable":  "VICTUS_SHA256",
+                          "default_value":  "2ceeb3ed4221e133d358342d5f3a09c63f9bcb2904e5ec05d530a40956070a2b",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|regex:/^[a-fA-F0-9]{64}$/"
+                      },
+                      {
+                          "name":  "Install Java Protocol Support",
+                          "description":  "Install current ViaVersion and ViaBackwards so supported older Java clients can connect. Set to 0 to disable.",
+                          "env_variable":  "INSTALL_PROTOCOL_SUPPORT",
+                          "default_value":  "1",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|in:0,1"
+                      },
+                      {
+                          "name":  "Accept Minecraft EULA",
+                          "description":  "Set to true to accept https://aka.ms/MinecraftEULA",
+                          "env_variable":  "EULA",
+                          "default_value":  "false",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|in:true,false"
+                      }
+                  ]
+}
